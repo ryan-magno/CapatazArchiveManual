@@ -1,0 +1,1127 @@
+{
+	"name": "Automated Pipeline with Change Tracking",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get Metadata",
+				"description": "Gets the tables to iterate, date to delete, and LastSysChangeVersion",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Reference Tables",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    TableName,\n    PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    SnowFlake.MetadataTable \nWHERE \n    IsActive = 1;\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "CapatazMetadata1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Iterate the Tables",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get Metadata",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get Metadata').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 6,
+					"activities": [
+						{
+							"name": "Update Monitoring Table and LastSysChange",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Post-Copy Re-enable Constraints",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
+								"storedProcedureParameters": {
+									"Remarks": {
+										"value": {
+											"value": "@activity('Live to Archive DB').error",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Read": {
+										"value": {
+											"value": "@activity('Live to Archive DB').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Write": {
+										"value": {
+											"value": "@activity('Live to Archive DB').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Year": {
+										"value": {
+											"value": "@item().DeletionYear",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Month": {
+										"value": {
+											"value": "@item().DeletionMonth",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Day": {
+										"value": {
+											"value": "@item().DeletionDay",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"SyncDeletion": {
+										"value": {
+											"value": "@activity('Log Data To Delete').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"MaxSysChangeVersion": {
+										"value": {
+											"value": "@item().LastSysChangeVersion",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Log Copy Errors",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Live to Archive DB",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogError]",
+								"storedProcedureParameters": {
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Remarks": {
+										"value": {
+											"value": "@activity('Live to Archive DB').error",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Live to Archive DB",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Pre-Copy Disable Constraints",
+									"dependencyConditions": [
+										"Completed"
+									]
+								},
+								{
+									"activity": "Lookup Schema Changes",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "1.00:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ', item().PrimaryKey, ' IN (',\n    'SELECT ', item().PrimaryKey,\n    ' FROM ', item().TableName, ' WITH (NOLOCK) ',\n    'WHERE ', item().FilterColumn, ' BETWEEN ''',\n      formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n    ''' AND ''',\n      formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n    ''')'\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@{activity('Lookup Schema Changes').output.firstRow.AlterScript}",
+										"type": "Expression"
+									},
+									"writeBehavior": "upsert",
+									"upsertSettings": {
+										"useTempDB": true,
+										"keys": {
+											"value": "@json(concat('[\"', item().PrimaryKey, '\"]'))",
+											"type": "Expression"
+										}
+									},
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ArchivedDBDataset1",
+									"type": "DatasetReference",
+									"parameters": {
+										"TableName": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Lookup Schema Changes",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "SinkDB",
+									"value": "ArchivalDB-Simulation"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@string(\n  concat(\n    'SELECT STUFF((',\n      'SELECT ',\n        '''IF NOT EXISTS (',\n          'SELECT 1 ',\n          'FROM [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].INFORMATION_SCHEMA.COLUMNS ',\n          'WHERE TABLE_SCHEMA = ''''dbo'''' ',\n            'AND TABLE_NAME = ''''', item().TableName, ''''' ',\n            'AND COLUMN_NAME = '''''' + c.COLUMN_NAME + ''''''',\n        ') '' + ',\n        '''ALTER TABLE [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].'' + QUOTENAME(c.TABLE_SCHEMA) + ''.'' + QUOTENAME(c.TABLE_NAME) + ',\n        ''' ADD '' + QUOTENAME(c.COLUMN_NAME) + '' '' + ',\n        'c.DATA_TYPE + ',\n        'CASE ',\n          'WHEN c.DATA_TYPE IN (''char'',''varchar'',''nchar'',''nvarchar'',''binary'',''varbinary'') THEN ',\n            '''('' + ',\n            'CASE ',\n              'WHEN c.CHARACTER_MAXIMUM_LENGTH = -1 THEN ''MAX'' ',\n              'ELSE CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10)) ',\n            'END + '')''',\n          'WHEN c.DATA_TYPE IN (''decimal'',''numeric'') THEN ',\n            '''('' + CAST(c.NUMERIC_PRECISION AS VARCHAR(10)) + '','' + CAST(c.NUMERIC_SCALE AS VARCHAR(10)) + '')''',\n          'ELSE ''''',\n        'END + ',\n        'CASE ',\n          'WHEN c.IS_NULLABLE = ''YES'' THEN '' NULL;'' ',\n          'ELSE '' NOT NULL;'' ',\n        'END + CHAR(13)',\n      'FROM INFORMATION_SCHEMA.COLUMNS AS c ',\n      'WHERE c.TABLE_SCHEMA = ''dbo'' AND c.TABLE_NAME = ''', item().TableName, '''',\n      'FOR XML PATH(''''), TYPE).value(''.'',''NVARCHAR(MAX)''), 1, 0, '''') AS AlterScript'\n  )\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Post-Copy Re-enable Constraints",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "Live to Archive DB",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "NonQuery",
+										"text": {
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "Pre-Copy Disable Constraints",
+							"type": "Script",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "NonQuery",
+										"text": {
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'NOCHECK CONSTRAINT ALL;'\n)",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Update Metadata",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMetadata]",
+					"storedProcedureParameters": {
+						"RetentionMonth": {
+							"value": "3",
+							"type": "Int16"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "CapatazLiveLS",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Send Email",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Get Total Runtime",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": {
+						"value": "https://prod-53.southeastasia.logic.azure.com:443/workflows/9d03871925c7476eaada332752f94139/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=oscBaQ3CM6o9Wl0kcmEw8rA9tDTyo3bAeNbYADRHa2M",
+						"type": "Expression"
+					},
+					"body": {
+						"value": "{\n    \"PipelineRunID\": \"@{pipeline().RunId}\",\n    \"ReadSum\": \"@{activity('Email Contents').output.firstRow.ReadSum}\",\n    \"WriteSum\": \"@{activity('Email Contents').output.firstRow.WriteSum}\",\n    \"RemainingSum\": \"@{activity('Email Contents').output.firstRow.RemainingSum}\",\n    \"DeltaDeletionSum\": \"@{activity('Email Contents').output.firstRow.DeltaDeletionSum}\",\n    \"DatabaseName\": \"@{activity('Email Contents').output.firstRow.DatabaseName}\",\n    \"Year\": \"@{activity('Email Contents').output.firstRow.Year}\",\n    \"Month\": \"@{activity('Email Contents').output.firstRow.MonthName}\",\n    \"Day\": \"@{activity('Email Contents').output.firstRow.Day}\",\n    \"FinalStatus\": \"@{activity('Email Contents').output.firstRow.FinalStatus}\",\n    \"Remarks\": \"@{activity('Email Contents').output.firstRow.Remarks}\",\n    \"DateToday\": \"@{activity('Email Contents').output.firstRow.DateToday}\",\n    \"TotalRuntime\": \"@{variables('TotalRuntime')}\"\n}\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Email Contents",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "If Condition for Data Validation",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    SUM([SyncDeletion]) AS DeltaDeletionSum,\n    DB_NAME() AS DatabaseName,\n    [Year],\n    DATENAME(MONTH, DATEFROMPARTS(Year, Month, 1)) AS MonthName,\n    [Day],\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY [Year], [Month], [Day], [Remarks];\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "CapatazDB1",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "If Condition for Data Validation",
+				"type": "IfCondition",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Sum of Rows Read and Copied",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Sum of Rows Read and Copied').output.value[0].TotalRead, activity('Sum of Rows Read and Copied').output.value[0].TotalWrite)\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Fail Activity",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "Row count mismatch detected. Source row count: @{activity('Sum of Rows Read and Copied').output.value[0].TotalRead}, Sink row count: @{activity('Sum of Rows Read and Copied').output.value[0].TotalWrite}.\n",
+									"type": "Expression"
+								},
+								"errorCode": {
+									"value": "RowCountMismatch",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Delete Archived Data",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Delete Delta",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_DeleteArchivedData]",
+								"storedProcedureParameters": {
+									"Day": {
+										"value": {
+											"value": "@activity('Get Metadata').output.value[0].DeletionDay",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Month": {
+										"value": {
+											"value": "@activity('Get Metadata').output.value[0].DeletionMonth",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Year": {
+										"value": {
+											"value": "@activity('Get Metadata').output.value[0].DeletionYear",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Log Deletion Errors",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Delete Archived Data",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogError]",
+								"storedProcedureParameters": {
+									"Errors": {
+										"value": {
+											"value": "@concat('Errors: ', string(activity('Delete Archived Data').output.message))\n",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Delete Delta",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Lookup PK of tables",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[ProcessDeletionRequests]",
+								"storedProcedureParameters": {
+									"TableSeqJson": {
+										"value": {
+											"value": "@string(activity('Lookup PK of tables').output.value)\n",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Lookup PK of tables",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT TableName AS TableName, PrimaryKey AS PK\nFROM [SnowFlake].[MetadataTable]\nUNION\nSELECT TableName AS TableName, PrimaryKey AS PK\nFROM [SnowFlake].[ReferenceTableMetadata];",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": false
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Sum of Rows Read and Copied",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Iterate the Tables",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    SUM([Read])           AS TotalRead, \n    SUM([Write])          AS TotalWrite,\n    SUM([ArchivalDeletion]) AS TotalArchivalDeletion,\n    SUM([SyncDeletion])   AS TotalSyncDeletion\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "CapatazDB1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Get Total Runtime",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Email Contents",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "TotalRuntime",
+					"value": {
+						"value": "@concat(\n    string(div(div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 3600)), 'H:',\n    string(div(mod(div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 3600), 60)), 'M:',\n    string(mod(div(sub(ticks(utcNow()), ticks(pipeline().TriggerTime)), 10000000), 60)), 'S'\n)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Reference Tables",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Reference Tables Lookup",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Reference Tables Lookup').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 20,
+					"activities": [
+						{
+							"name": "Upsert Reference Tables",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Lookup Schema Changes Reference",
+									"dependencyConditions": [
+										"Completed"
+									]
+								},
+								{
+									"activity": "Pre-Copy Disable Constraints Reference",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "1.00:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ', item().FilterColumn, ' BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@{activity('Lookup Schema Changes Reference').output.firstRow.AlterScript}",
+										"type": "Expression"
+									},
+									"writeBehavior": "upsert",
+									"upsertSettings": {
+										"useTempDB": true,
+										"keys": {
+											"value": "@json(concat('[\"', item().PrimaryKey, '\"]'))",
+											"type": "Expression"
+										}
+									},
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ArchivedDBDataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"TableName": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Monitoring Table and LastSysChange Reference",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Post-Copy Rebuild Constraints Reference",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
+								"storedProcedureParameters": {
+									"Remarks": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').error",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Read": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Write": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"StartYear": {
+										"value": {
+											"value": "@variables('StartYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartMonth": {
+										"value": {
+											"value": "@variables('StartMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartDay": {
+										"value": {
+											"value": "@variables('StartDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"MaxSysChangeVersion": {
+										"value": {
+											"value": "@item().LastSysChangeVersion",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndYear": {
+										"value": {
+											"value": "@variables('EndYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndMonth": {
+										"value": {
+											"value": "@variables('EndMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndDay": {
+										"value": {
+											"value": "@variables('EndDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Lookup Schema Changes Reference",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "SinkDB",
+									"value": "ArchivalDB-Simulation"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@string(\n  concat(\n    'SELECT STUFF((',\n      'SELECT ',\n        '''IF NOT EXISTS (',\n          'SELECT 1 ',\n          'FROM [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].INFORMATION_SCHEMA.COLUMNS ',\n          'WHERE TABLE_SCHEMA = ''''dbo'''' ',\n            'AND TABLE_NAME = ''''', item().TableName, ''''' ',\n            'AND COLUMN_NAME = '''''' + c.COLUMN_NAME + ''''''',\n        ') '' + ',\n        '''ALTER TABLE [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].'' + QUOTENAME(c.TABLE_SCHEMA) + ''.'' + QUOTENAME(c.TABLE_NAME) + ',\n        ''' ADD '' + QUOTENAME(c.COLUMN_NAME) + '' '' + ',\n        'c.DATA_TYPE + ',\n        'CASE ',\n          'WHEN c.DATA_TYPE IN (''char'',''varchar'',''nchar'',''nvarchar'',''binary'',''varbinary'') THEN ',\n            '''('' + ',\n            'CASE ',\n              'WHEN c.CHARACTER_MAXIMUM_LENGTH = -1 THEN ''MAX'' ',\n              'ELSE CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10)) ',\n            'END + '')''',\n          'WHEN c.DATA_TYPE IN (''decimal'',''numeric'') THEN ',\n            '''('' + CAST(c.NUMERIC_PRECISION AS VARCHAR(10)) + '','' + CAST(c.NUMERIC_SCALE AS VARCHAR(10)) + '')''',\n          'ELSE ''''',\n        'END + ',\n        'CASE ',\n          'WHEN c.IS_NULLABLE = ''YES'' THEN '' NULL;'' ',\n          'ELSE '' NOT NULL;'' ',\n        'END + CHAR(13)',\n      'FROM INFORMATION_SCHEMA.COLUMNS AS c ',\n      'WHERE c.TABLE_SCHEMA = ''dbo'' AND c.TABLE_NAME = ''', item().TableName, '''',\n      'FOR XML PATH(''''), TYPE).value(''.'',''NVARCHAR(MAX)''), 1, 0, '''') AS AlterScript'\n  )\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Post-Copy Rebuild Constraints Reference",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "Upsert Reference Tables",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "NonQuery",
+										"text": {
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)\n",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "Pre-Copy Disable Constraints Reference",
+							"type": "Script",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "NonQuery",
+										"text": {
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'NOCHECK CONSTRAINT ALL;'\n)",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Reference Tables Lookup",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Update Metadata",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT \n    TableName,\n    PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    [SnowFlake].[ReferenceTableMetadata]\nWHERE \n    IsActive = 1;\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "CapatazDB",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"parameters": {
+			"SinkDB": {
+				"type": "string",
+				"defaultValue": "Capataz-dev_Archived"
+			}
+		},
+		"variables": {
+			"TotalRuntime": {
+				"type": "String"
+			},
+			"StartYear": {
+				"type": "Integer"
+			},
+			"StartMonth": {
+				"type": "Integer"
+			},
+			"StartDay": {
+				"type": "Integer"
+			},
+			"EndYear": {
+				"type": "Integer"
+			},
+			"EndMonth": {
+				"type": "Integer"
+			},
+			"EndDay": {
+				"type": "Integer"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-01-10T07:15:02Z"
+	}
+}
