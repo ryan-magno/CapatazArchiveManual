@@ -60,105 +60,6 @@
 					"batchCount": 6,
 					"activities": [
 						{
-							"name": "Update Monitoring Table and LastSysChange",
-							"type": "SqlServerStoredProcedure",
-							"dependsOn": [
-								{
-									"activity": "Post-Copy Re-enable Constraints",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 3,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
-								"storedProcedureParameters": {
-									"Remarks": {
-										"value": {
-											"value": "@activity('Live to Archive DB').error",
-											"type": "Expression"
-										},
-										"type": "String"
-									},
-									"Read": {
-										"value": {
-											"value": "@activity('Live to Archive DB').output.rowsCopied",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"Write": {
-										"value": {
-											"value": "@activity('Live to Archive DB').output.rowsRead",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"TableName": {
-										"value": {
-											"value": "@item().TableName",
-											"type": "Expression"
-										},
-										"type": "String"
-									},
-									"PipelineRunID": {
-										"value": {
-											"value": "@pipeline().RunId",
-											"type": "Expression"
-										},
-										"type": "String"
-									},
-									"Year": {
-										"value": {
-											"value": "@item().DeletionYear",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"Month": {
-										"value": {
-											"value": "@item().DeletionMonth",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"Day": {
-										"value": {
-											"value": "@item().DeletionDay",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"SyncDeletion": {
-										"value": {
-											"value": "@activity('Log Data To Delete').output.rowsRead",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
-									"MaxSysChangeVersion": {
-										"value": {
-											"value": "@item().LastSysChangeVersion",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									}
-								}
-							},
-							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
-								"type": "LinkedServiceReference"
-							}
-						},
-						{
 							"name": "Log Copy Errors",
 							"type": "SqlServerStoredProcedure",
 							"dependsOn": [
@@ -386,6 +287,119 @@
 								],
 								"scriptBlockExecutionTimeout": "02:00:00"
 							}
+						},
+						{
+							"name": "Update Monitoring Table and LastSysChange",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Post-Copy Re-enable Constraints",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
+								"storedProcedureParameters": {
+									"Remarks": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').error",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Read": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Write": {
+										"value": {
+											"value": "@activity('Upsert Reference Tables').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"StartYear": {
+										"value": {
+											"value": "@variables('StartYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartMonth": {
+										"value": {
+											"value": "@variables('StartMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartDay": {
+										"value": {
+											"value": "@variables('StartDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"MaxSysChangeVersion": {
+										"value": {
+											"value": "@item().LastSysChangeVersion",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndYear": {
+										"value": {
+											"value": "@variables('EndYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndMonth": {
+										"value": {
+											"value": "@variables('EndMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndDay": {
+										"value": {
+											"value": "@variables('EndDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
+							}
 						}
 					]
 				}
@@ -523,14 +537,7 @@
 						{
 							"name": "Delete Archived Data",
 							"type": "SqlServerStoredProcedure",
-							"dependsOn": [
-								{
-									"activity": "Delete Delta",
-									"dependencyConditions": [
-										"Completed"
-									]
-								}
-							],
+							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
 								"retry": 3,
@@ -566,6 +573,48 @@
 									"Year": {
 										"value": {
 											"value": "@activity('Get Metadata').output.value[0].DeletionYear",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartYear": {
+										"value": {
+											"value": "@variables('StartYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartMonth": {
+										"value": {
+											"value": "@variables('StartMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartDay": {
+										"value": {
+											"value": "@variables('StartDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndYear": {
+										"value": {
+											"value": "@variables('EndYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndMonth": {
+										"value": {
+											"value": "@variables('EndMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndDay": {
+										"value": {
+											"value": "@variables('EndDay')",
 											"type": "Expression"
 										},
 										"type": "Int16"
@@ -618,71 +667,6 @@
 							"linkedServiceName": {
 								"referenceName": "CapatazLiveLS",
 								"type": "LinkedServiceReference"
-							}
-						},
-						{
-							"name": "Delete Delta",
-							"type": "SqlServerStoredProcedure",
-							"dependsOn": [
-								{
-									"activity": "Lookup PK of tables",
-									"dependencyConditions": [
-										"Completed"
-									]
-								}
-							],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 3,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[ProcessDeletionRequests]",
-								"storedProcedureParameters": {
-									"TableSeqJson": {
-										"value": {
-											"value": "@string(activity('Lookup PK of tables').output.value)\n",
-											"type": "Expression"
-										},
-										"type": "String"
-									}
-								}
-							},
-							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
-								"type": "LinkedServiceReference"
-							}
-						},
-						{
-							"name": "Lookup PK of tables",
-							"type": "Lookup",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"source": {
-									"type": "AzureSqlSource",
-									"sqlReaderQuery": {
-										"value": "SELECT TableName AS TableName, PrimaryKey AS PK\nFROM [SnowFlake].[MetadataTable]\nUNION\nSELECT TableName AS TableName, PrimaryKey AS PK\nFROM [SnowFlake].[ReferenceTableMetadata];",
-										"type": "Expression"
-									},
-									"queryTimeout": "02:00:00",
-									"partitionOption": "None"
-								},
-								"dataset": {
-									"referenceName": "CapatazDB",
-									"type": "DatasetReference"
-								},
-								"firstRowOnly": false
 							}
 						}
 					]
