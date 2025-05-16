@@ -991,12 +991,6 @@
 				}
 			}
 		],
-		"parameters": {
-			"SinkDB": {
-				"type": "string",
-				"defaultValue": "Capataz-dev_Archived"
-			}
-		},
 		"variables": {
 			"TotalRuntime": {
 				"type": "String"
