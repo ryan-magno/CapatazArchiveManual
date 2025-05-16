@@ -1,0 +1,402 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"EclectusFarms_UAT_LS": {
+			"type": "string"
+		},
+		"EclectusFarms_SinkLS": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/EclectusFarms ADLS Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Iterate the Tables",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get TableNames",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get TableNames').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "SQL Database to ADLS",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 3,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "@concat(\n    'SELECT * FROM ', item().TableName, ' WHERE CONVERT(DATE, CreatedAt) = ''', item().CopyDate, ''''\n)\n",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "EclectusFarms_UAT_DS",
+											"type": "DatasetReference"
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "EclectusFarms_SinkDS",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@concat(\n    variables('Year'), '-', \n    variables('Month'), \n    if(equals(formatDateTime(item().CopyDate, 'dd'), ''), '', concat('-', formatDateTime(item().CopyDate, 'dd'))),\n    '-', pipeline().RunId, '.parquet'\n)\n",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@concat(replace(replace(item().TableName, '[App].[', ''), ']', ''), '/', variables('Year'), '/', variables('Month'), '/')\n",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Update Monitoring Table",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SQL Database to ADLS",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 3,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[SnowFlake].[UpdateMonitoring]",
+										"storedProcedureParameters": {
+											"Remarks": {
+												"value": {
+													"value": "@activity('SQL Database to ADLS').error",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"Write": {
+												"value": {
+													"value": "@activity('SQL Database to ADLS').output.rowsCopied",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											},
+											"Read": {
+												"value": {
+													"value": "@activity('SQL Database to ADLS').output.rowsRead",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"PipelineRunID": {
+												"value": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"Year": {
+												"value": {
+													"value": "@variables('Year')",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											},
+											"Month": {
+												"value": {
+													"value": "@variables('Month')",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											},
+											"Day": {
+												"value": {
+													"value": "@formatDateTime(item().CopyDate, 'dd')",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "[parameters('EclectusFarms_UAT_LS')]",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "Log Copy Errors",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SQL Database to ADLS",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 3,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[SnowFlake].[LogError]",
+										"storedProcedureParameters": {
+											"Remarks": {
+												"value": {
+													"value": "@concat('Errors: ', string(activity('SQL Database to ADLS').output.errors))\n",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"PipelineRunID": {
+												"value": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												}
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "[parameters('EclectusFarms_UAT_LS')]",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Get TableNames",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Get TableNames and Dates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "SELECT * FROM MetadataTable WHERE YEAR(CopyDate) = @{variables('Year')} AND MONTH(CopyDate) = @{variables('Month')}",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "EclectusFarms_UAT_DS",
+								"type": "DatasetReference"
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Get TableNames and Dates",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[SnowFlake].[Log_Table_Dates]",
+							"storedProcedureParameters": {
+								"input_month": {
+									"value": {
+										"value": "@variables('Month')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"input_year": {
+									"value": {
+										"value": "@variables('Year')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "[parameters('EclectusFarms_UAT_LS')]",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"variables": {
+					"Year": {
+						"type": "Integer",
+						"defaultValue": 2022
+					},
+					"Month": {
+						"type": "Integer",
+						"defaultValue": 7
+					},
+					"TotalRuntime": {
+						"type": "String"
+					},
+					"Day": {
+						"type": "Integer"
+					},
+					"SchemaName": {
+						"type": "String",
+						"defaultValue": "App"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-01-10T07:12:07Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/EclectusFarms_UAT_DS')]",
+				"[concat(variables('factoryId'), '/datasets/EclectusFarms_SinkDS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EclectusFarms_UAT_DS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('EclectusFarms_UAT_LS')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/EclectusFarms_SinkDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('EclectusFarms_SinkLS')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().Directory",
+							"type": "Expression"
+						},
+						"fileSystem": "parquet"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}
