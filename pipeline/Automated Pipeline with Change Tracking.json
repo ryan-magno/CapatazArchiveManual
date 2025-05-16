@@ -289,7 +289,7 @@
 							}
 						},
 						{
-							"name": "Update Monitoring Table and LastSysChange",
+							"name": "Update Monitoring Table",
 							"type": "SqlServerStoredProcedure",
 							"dependsOn": [
 								{
@@ -310,33 +310,26 @@
 							"typeProperties": {
 								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
 								"storedProcedureParameters": {
-									"Remarks": {
+									"EndDay": {
 										"value": {
-											"value": "@activity('Upsert Reference Tables').error",
+											"value": "@variables('EndDay')",
 											"type": "Expression"
 										},
-										"type": "String"
+										"type": "Int32"
 									},
-									"Read": {
+									"EndMonth": {
 										"value": {
-											"value": "@activity('Upsert Reference Tables').output.rowsRead",
+											"value": "@variables('EndMonth')",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
-									"Write": {
+									"EndYear": {
 										"value": {
-											"value": "@activity('Upsert Reference Tables').output.rowsCopied",
+											"value": "@variables('EndYear')",
 											"type": "Expression"
 										},
-										"type": "Int16"
-									},
-									"TableName": {
-										"value": {
-											"value": "@item().TableName",
-											"type": "Expression"
-										},
-										"type": "String"
+										"type": "Int32"
 									},
 									"PipelineRunID": {
 										"value": {
@@ -345,54 +338,54 @@
 										},
 										"type": "String"
 									},
-									"StartYear": {
+									"Read": {
 										"value": {
-											"value": "@variables('StartYear')",
+											"value": "@activity('Live to Archive DB').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
-									"StartMonth": {
+									"Remarks": {
 										"value": {
-											"value": "@variables('StartMonth')",
+											"value": "@activity('Live to Archive DB').output.error",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "String"
 									},
 									"StartDay": {
 										"value": {
 											"value": "@variables('StartDay')",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
-									"MaxSysChangeVersion": {
+									"StartMonth": {
 										"value": {
-											"value": "@item().LastSysChangeVersion",
+											"value": "@variables('StartMonth')",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
-									"EndYear": {
+									"StartYear": {
 										"value": {
-											"value": "@variables('EndYear')",
+											"value": "@variables('StartYear')",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
-									"EndMonth": {
+									"TableName": {
 										"value": {
-											"value": "@variables('EndMonth')",
+											"value": "@item().TableName",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "String"
 									},
-									"EndDay": {
+									"Write": {
 										"value": {
-											"value": "@variables('EndDay')",
+											"value": "@activity('Live to Archive DB').output.rowsCopied",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									}
 								}
 							},
@@ -499,8 +492,6 @@
 			{
 				"name": "If Condition for Data Validation",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Sum of Rows Read and Copied",
@@ -1087,22 +1078,28 @@
 				"type": "String"
 			},
 			"StartYear": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 2022
 			},
 			"StartMonth": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 1
 			},
 			"StartDay": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 1
 			},
 			"EndYear": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 2022
 			},
 			"EndMonth": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 1
 			},
 			"EndDay": {
-				"type": "Integer"
+				"type": "Integer",
+				"defaultValue": 31
 			}
 		},
 		"annotations": [],
