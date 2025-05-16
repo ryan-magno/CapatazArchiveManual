@@ -26,7 +26,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    TableName,\n    PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    SnowFlake.MetadataTable \nWHERE \n    IsActive = 1;\n",
+							"value": "SELECT \n    TableName,\n        PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    SnowFlake.MetadataTable \nWHERE \n    IsActive = 1;\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -57,7 +57,7 @@
 						"type": "Expression"
 					},
 					"isSequential": false,
-					"batchCount": 6,
+					"batchCount": 3,
 					"activities": [
 						{
 							"name": "Log Copy Errors",
@@ -138,7 +138,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ', item().PrimaryKey, ' IN (',\n    'SELECT ', item().PrimaryKey,\n    ' FROM ', item().TableName, ' WITH (NOLOCK) ',\n    'WHERE ', item().FilterColumn, ' BETWEEN ''',\n      formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n    ''' AND ''',\n      formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n    ''')'\n)",
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE CreatedDate BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -146,10 +146,6 @@
 								},
 								"sink": {
 									"type": "AzureSqlSink",
-									"preCopyScript": {
-										"value": "@{activity('Lookup Schema Changes').output.firstRow.AlterScript}",
-										"type": "Expression"
-									},
 									"writeBehavior": "upsert",
 									"upsertSettings": {
 										"useTempDB": true,
@@ -193,6 +189,8 @@
 						{
 							"name": "Lookup Schema Changes",
 							"type": "Lookup",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
@@ -412,9 +410,47 @@
 				"typeProperties": {
 					"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMetadata]",
 					"storedProcedureParameters": {
-						"RetentionMonth": {
-							"value": "3",
-							"type": "Int16"
+						"EndDay": {
+							"value": {
+								"value": "@variables('EndDay')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"EndMonth": {
+							"value": {
+								"value": "@variables('EndMonth')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"EndYear": {
+							"value": {
+								"value": "@variables('EndYear')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"StartDay": {
+							"value": {
+								"value": "@variables('StartDay')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"StartMonth": {
+							"value": {
+								"value": "@variables('StartMonth')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"StartYear": {
+							"value": {
+								"value": "@variables('StartYear')",
+								"type": "Expression"
+							},
+							"type": "Int32"
 						}
 					}
 				},
@@ -686,7 +722,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read])           AS TotalRead, \n    SUM([Write])          AS TotalWrite,\n    SUM([ArchivalDeletion]) AS TotalArchivalDeletion,\n    SUM([SyncDeletion])   AS TotalSyncDeletion\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\n",
+							"value": "SELECT \n    SUM([Read])           AS TotalRead, \n    SUM([Write])          AS TotalWrite,\n    SUM([ArchivalDeletion]) AS TotalArchivalDeletion\nFROM \n    SnowFlake.ArchivalMonitoring\nWHERE \n    PipelineRunID = '@{pipeline().RunId}'\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -741,7 +777,7 @@
 						"type": "Expression"
 					},
 					"isSequential": false,
-					"batchCount": 20,
+					"batchCount": 30,
 					"activities": [
 						{
 							"name": "Upsert Reference Tables",
@@ -772,7 +808,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ', item().FilterColumn, ' BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE CreatedDate BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -780,10 +816,6 @@
 								},
 								"sink": {
 									"type": "AzureSqlSink",
-									"preCopyScript": {
-										"value": "@{activity('Lookup Schema Changes Reference').output.firstRow.AlterScript}",
-										"type": "Expression"
-									},
 									"writeBehavior": "upsert",
 									"upsertSettings": {
 										"useTempDB": true,
@@ -894,13 +926,6 @@
 										},
 										"type": "Int16"
 									},
-									"MaxSysChangeVersion": {
-										"value": {
-											"value": "@item().LastSysChangeVersion",
-											"type": "Expression"
-										},
-										"type": "Int16"
-									},
 									"EndYear": {
 										"value": {
 											"value": "@variables('EndYear')",
@@ -932,6 +957,8 @@
 						{
 							"name": "Lookup Schema Changes Reference",
 							"type": "Lookup",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
