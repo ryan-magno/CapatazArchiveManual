@@ -783,6 +783,8 @@
 						{
 							"name": "Update Monitoring Table and LastSysChange Reference",
 							"type": "SqlServerStoredProcedure",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Post-Copy Rebuild Constraints Reference",
@@ -944,6 +946,107 @@
 										"type": "NonQuery",
 										"text": {
 											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'NOCHECK CONSTRAINT ALL;'\n)",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "Copy data1",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Upsert Reference Tables",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": "@concat('SELECT * FROM ', item().TableName, ' WITH (NOLOCK)')",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"writeBehavior": "upsert",
+									"upsertSettings": {
+										"useTempDB": true,
+										"keys": {
+											"value": "@json(concat('[\"', item().PrimaryKey, '\"]'))",
+											"type": "Expression"
+										}
+									},
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ArchivedDBDataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"TableName": "@item().TableName"
+									}
+								}
+							]
+						},
+						{
+							"name": "Post-Copy Rebuild Constraints Reference_copy1",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "Copy data1",
+									"dependencyConditions": [
+										"Completed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "CapatazArchiveLS",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "NonQuery",
+										"text": {
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)\n",
 											"type": "Expression"
 										}
 									}
