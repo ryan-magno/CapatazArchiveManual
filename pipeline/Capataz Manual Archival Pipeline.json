@@ -1,5 +1,5 @@
 {
-	"name": "Automated Pipeline with Change Tracking",
+	"name": "Capataz Manual Archival Pipeline",
 	"properties": {
 		"activities": [
 			{
@@ -132,7 +132,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE CreatedDate BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ',\n    if(equals(item().TableName, 'ProfileTimeKeepingWhosWorkings'), 'DateTimeInOut', 'CreatedDate'),\n  ' BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'), '-', variables('EndMonth'), '-', variables('EndDay')), 'yyyy-MM-dd'),\n  ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -740,7 +740,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE CreatedDate BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'),   '-', variables('EndMonth'),   '-', variables('EndDay')),   'yyyy-MM-dd'),\n  ''''\n)",
+										"value": "@concat(\n  'SELECT * FROM ', item().TableName, ' WITH (NOLOCK) ',\n  'WHERE ',\n    if(equals(item().TableName, 'ProfileTimeKeepingWhosWorkings'), 'DateTimeInOut', 'CreatedDate'),\n  ' BETWEEN ''',\n    formatDateTime(concat(variables('StartYear'), '-', variables('StartMonth'), '-', variables('StartDay')), 'yyyy-MM-dd'),\n  ''' AND ''',\n    formatDateTime(concat(variables('EndYear'), '-', variables('EndMonth'), '-', variables('EndDay')), 'yyyy-MM-dd'),\n  ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -1230,7 +1230,7 @@
 			},
 			"EndMonth": {
 				"type": "Integer",
-				"defaultValue": 4
+				"defaultValue": 5
 			},
 			"EndDay": {
 				"type": "Integer",
