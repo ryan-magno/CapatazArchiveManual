@@ -26,7 +26,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    TableName,\n        PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    SnowFlake.MetadataTable \nWHERE \n    IsActive = 1;\n",
+							"value": "SELECT \n    TableName,\n        PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    SnowFlake.MetadataTableManual \nWHERE \n    IsActive = 1;\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -79,7 +79,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogError]",
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogErrorManual]",
 								"storedProcedureParameters": {
 									"TableName": {
 										"value": {
@@ -265,7 +265,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoringManual]",
 								"storedProcedureParameters": {
 									"EndDay": {
 										"value": {
@@ -367,7 +367,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMetadata]",
+					"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMetadataManual]",
 					"storedProcedureParameters": {
 						"EndDay": {
 							"value": {
@@ -472,7 +472,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
+							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoringManual\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -533,7 +533,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_DeleteArchivedData]",
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_DeleteArchivedDataManual]",
 								"storedProcedureParameters": {
 									"PipelineRunID": {
 										"value": {
@@ -611,7 +611,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogError]",
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_LogErrorManual]",
 								"storedProcedureParameters": {
 									"Errors": {
 										"value": {
@@ -660,7 +660,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read])           AS TotalRead, \n    SUM([Write])          AS TotalWrite,\n    SUM([ArchivalDeletion]) AS TotalArchivalDeletion\nFROM \n    SnowFlake.ArchivalMonitoring\nWHERE \n    PipelineRunID = '@{pipeline().RunId}'\n",
+							"value": "SELECT \n    SUM([Read])           AS TotalRead, \n    SUM([Write])          AS TotalWrite,\n    SUM([ArchivalDeletion]) AS TotalArchivalDeletion\nFROM \n    SnowFlake.ArchivalMonitoringManual\nWHERE \n    PipelineRunID = '@{pipeline().RunId}'\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -800,7 +800,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoring]",
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoringManual]",
 								"storedProcedureParameters": {
 									"Remarks": {
 										"value": {
@@ -977,7 +977,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    TableName,\n    PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    [SnowFlake].[ReferenceTableMetadata]\nWHERE \n    IsActive = 1;\n",
+							"value": "SELECT \n    TableName,\n    PrimaryKey,\n    StartYear,\n    StartMonth,\n    StartDay,\n    EndYear,\n    EndMonth,\n    EndDay\nFROM \n    [SnowFlake].[ReferenceTableMetadataManual]\nWHERE \n    IsActive = 1;\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
