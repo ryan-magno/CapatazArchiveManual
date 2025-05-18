@@ -715,7 +715,7 @@
 						"type": "Expression"
 					},
 					"isSequential": false,
-					"batchCount": 30,
+					"batchCount": 40,
 					"activities": [
 						{
 							"name": "Upsert Reference Tables",
@@ -783,8 +783,6 @@
 						{
 							"name": "Update Monitoring Table and LastSysChange Reference",
 							"type": "SqlServerStoredProcedure",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Post-Copy Rebuild Constraints Reference",
@@ -954,8 +952,10 @@
 							}
 						},
 						{
-							"name": "Copy data1",
+							"name": "Upsert Reference Failed Tables",
 							"type": "Copy",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Upsert Reference Tables",
@@ -981,6 +981,10 @@
 								},
 								"sink": {
 									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@concat('ALTER INDEX [PK_', item().TableName, '] ON [dbo].[',item().TableName,'] DISABLE;')\n",
+										"type": "Expression"
+									},
 									"writeBehavior": "upsert",
 									"upsertSettings": {
 										"useTempDB": true,
@@ -1019,11 +1023,13 @@
 							]
 						},
 						{
-							"name": "Post-Copy Rebuild Constraints Reference_copy1",
+							"name": "Post-Copy Rebuild Constraints For Failed Tables",
 							"type": "Script",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
-									"activity": "Copy data1",
+									"activity": "Upsert Reference Failed Tables",
 									"dependencyConditions": [
 										"Completed"
 									]
@@ -1052,6 +1058,114 @@
 									}
 								],
 								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						},
+						{
+							"name": "Update Monitoring Table For Failed Tables",
+							"type": "SqlServerStoredProcedure",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [
+								{
+									"activity": "Post-Copy Rebuild Constraints For Failed Tables",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[SnowFlake].[Capataz_ADF_UpdateMonitoringManual]",
+								"storedProcedureParameters": {
+									"Remarks": {
+										"value": {
+											"value": "@activity('Upsert Reference Failed Tables').error",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"Read": {
+										"value": {
+											"value": "@activity('Upsert Reference Failed Tables').output.rowsRead",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"Write": {
+										"value": {
+											"value": "@activity('Upsert Reference Failed Tables').output.rowsCopied",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"PipelineRunID": {
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"StartYear": {
+										"value": {
+											"value": "@variables('StartYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartMonth": {
+										"value": {
+											"value": "@variables('StartMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"StartDay": {
+										"value": {
+											"value": "@variables('StartDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndYear": {
+										"value": {
+											"value": "@variables('EndYear')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndMonth": {
+										"value": {
+											"value": "@variables('EndMonth')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									},
+									"EndDay": {
+										"value": {
+											"value": "@variables('EndDay')",
+											"type": "Expression"
+										},
+										"type": "Int16"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "CapatazLiveLS",
+								"type": "LinkedServiceReference"
 							}
 						}
 					]
