@@ -730,7 +730,7 @@
 							],
 							"policy": {
 								"timeout": "1.00:00:00",
-								"retry": 3,
+								"retry": 0,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
@@ -914,7 +914,7 @@
 									{
 										"type": "NonQuery",
 										"text": {
-											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)\n",
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)",
 											"type": "Expression"
 										}
 									}
@@ -954,8 +954,6 @@
 						{
 							"name": "Upsert Reference Failed Tables",
 							"type": "Copy",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Upsert Reference Tables",
@@ -975,14 +973,17 @@
 							"typeProperties": {
 								"source": {
 									"type": "AzureSqlSource",
-									"sqlReaderQuery": "@concat('SELECT * FROM ', item().TableName, ' WITH (NOLOCK)')",
+									"sqlReaderQuery": {
+										"value": "@concat('SELECT * FROM ', item().TableName, ' WITH (NOLOCK)')",
+										"type": "Expression"
+									},
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
 								"sink": {
 									"type": "AzureSqlSink",
 									"preCopyScript": {
-										"value": "@concat('ALTER INDEX [PK_', item().TableName, '] ON [dbo].[',item().TableName,'] DISABLE;')\n",
+										"value": "@concat(\n    'ALTER INDEX [PK_', item().TableName, '] ON [dbo].[', item().TableName, '] REBUILD; ',\n    'TRUNCATE TABLE [dbo].[', item().TableName, '];'\n)\n",
 										"type": "Expression"
 									},
 									"writeBehavior": "upsert",
@@ -1025,8 +1026,6 @@
 						{
 							"name": "Post-Copy Rebuild Constraints For Failed Tables",
 							"type": "Script",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Upsert Reference Failed Tables",
@@ -1052,7 +1051,7 @@
 									{
 										"type": "NonQuery",
 										"text": {
-											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH NOCHECK CHECK CONSTRAINT ALL;'\n)\n",
+											"value": "@concat(\n  'ALTER TABLE [dbo].[', item().TableName, '] ',\n  'WITH CHECK CHECK CONSTRAINT ALL;'\n)\n",
 											"type": "Expression"
 										}
 									}
@@ -1063,8 +1062,6 @@
 						{
 							"name": "Update Monitoring Table For Failed Tables",
 							"type": "SqlServerStoredProcedure",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "Post-Copy Rebuild Constraints For Failed Tables",
@@ -1218,7 +1215,7 @@
 			},
 			"StartMonth": {
 				"type": "Integer",
-				"defaultValue": 4
+				"defaultValue": 6
 			},
 			"StartDay": {
 				"type": "Integer",
@@ -1230,7 +1227,7 @@
 			},
 			"EndMonth": {
 				"type": "Integer",
-				"defaultValue": 5
+				"defaultValue": 6
 			},
 			"EndDay": {
 				"type": "Integer",
