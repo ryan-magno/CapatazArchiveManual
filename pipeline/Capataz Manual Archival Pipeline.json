@@ -510,7 +510,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    SUM([ArchivalDeletion]) AS ArchivalDeletionSum,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoringManual\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
+							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    SUM([ArchivalDeletion]) AS ArchivalDeletionSum,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN [Status] = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN [Status] = 'Inconsistent' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoringManual\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
