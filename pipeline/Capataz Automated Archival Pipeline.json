@@ -496,11 +496,11 @@
 				"typeProperties": {
 					"method": "POST",
 					"url": {
-						"value": "https://prod-53.southeastasia.logic.azure.com:443/workflows/9d03871925c7476eaada332752f94139/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=oscBaQ3CM6o9Wl0kcmEw8rA9tDTyo3bAeNbYADRHa2M",
+						"value": "https://prod-44.southeastasia.logic.azure.com:443/workflows/9c5f42af12d642279d486dee56f6370d/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=dHT01P4IXICLaWRb9vGhm-fht6IIFRC0fiaPetXUy-Q",
 						"type": "Expression"
 					},
 					"body": {
-						"value": "{\n    \"PipelineRunID\": \"@{pipeline().RunId}\",\n    \"ReadSum\": \"@{activity('Email Contents').output.firstRow.ReadSum}\",\n    \"WriteSum\": \"@{activity('Email Contents').output.firstRow.WriteSum}\",\n    \"RemainingSum\": \"@{activity('Email Contents').output.firstRow.RemainingSum}\",\n    \"DeltaDeletionSum\": \"@{activity('Email Contents').output.firstRow.DeltaDeletionSum}\",\n    \"DatabaseName\": \"@{activity('Email Contents').output.firstRow.DatabaseName}\",\n    \"Year\": \"@{activity('Email Contents').output.firstRow.Year}\",\n    \"Month\": \"@{activity('Email Contents').output.firstRow.MonthName}\",\n    \"Day\": \"@{activity('Email Contents').output.firstRow.Day}\",\n    \"FinalStatus\": \"@{activity('Email Contents').output.firstRow.FinalStatus}\",\n    \"Remarks\": \"@{activity('Email Contents').output.firstRow.Remarks}\",\n    \"DateToday\": \"@{activity('Email Contents').output.firstRow.DateToday}\",\n    \"TotalRuntime\": \"@{variables('TotalRuntime')}\"\n}\n",
+						"value": "{\n    \"PipelineRunID\": \"@{pipeline().RunId}\",\n    \"ReadSum\": \"@{activity('Email Contents').output.firstRow.ReadSum}\",\n    \"WriteSum\": \"@{activity('Email Contents').output.firstRow.WriteSum}\",\n    \"DeltaDeletionSum\": \"@{activity('Email Contents').output.firstRow.DeltaDeletionSum}\",\n    \"ArchivalDeletionSum\": \"@{activity('Email Contents').output.firstRow.ArchivalDeletionSum}\",\n    \"RemainingSum\": \"@{activity('Email Contents').output.firstRow.RemainingSum}\",\n    \"DatabaseName\": \"@{activity('Email Contents').output.firstRow.DatabaseName}\",\n    \"Year\": \"@{activity('Email Contents').output.firstRow.Year}\",\n    \"Month\": \"@{activity('Email Contents').output.firstRow.MonthName}\",\n    \"Day\": \"@{activity('Email Contents').output.firstRow.Day}\",\n    \"FinalStatus\": \"@{activity('Email Contents').output.firstRow.FinalStatus}\",\n    \"Remarks\": \"@{activity('Email Contents').output.firstRow.Remarks}\",\n    \"DateToday\": \"@{activity('Email Contents').output.firstRow.DateToday}\",\n    \"TotalRuntime\": \"@{variables('TotalRuntime')}\"\n}\n",
 						"type": "Expression"
 					}
 				}
@@ -528,7 +528,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    SUM([SyncDeletion]) AS DeltaDeletionSum,\n    DB_NAME() AS DatabaseName,\n    [Year],\n    DATENAME(MONTH, DATEFROMPARTS(Year, Month, 1)) AS MonthName,\n    [Day],\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY [Year], [Month], [Day], [Remarks];\n",
+							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    SUM([SyncDeletion]) AS DeltaDeletionSum,\n    SUM([ArchivalDeletion]) AS ArchivalDeletionSum,\n    DB_NAME() AS DatabaseName,\n    [Year],\n    [Month],\n    DATENAME(MONTH, DATEFROMPARTS([Year], [Month], 1)) AS MonthName,\n    [Day],\n    CASE \n        WHEN MAX(CASE WHEN [Status] = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN [Status] = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    MAX([Remarks]) AS Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoring\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY [Year], [Month], [Day];\n\n",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -543,8 +543,6 @@
 			{
 				"name": "If Condition for Data Validation",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Sum of Rows Read and Copied",
@@ -1096,7 +1094,7 @@
 								{
 									"activity": "Upsert Reference Tables",
 									"dependencyConditions": [
-										"Completed"
+										"Succeeded"
 									]
 								}
 							],
@@ -1401,7 +1399,7 @@
 		"parameters": {
 			"SinkDB": {
 				"type": "string",
-				"defaultValue": "Capataz-dev_Archived"
+				"defaultValue": "ArchivalDB-Simulation"
 			}
 		},
 		"variables": {

@@ -118,6 +118,12 @@
 									"dependencyConditions": [
 										"Completed"
 									]
+								},
+								{
+									"activity": "Lookup Schema Changes",
+									"dependencyConditions": [
+										"Completed"
+									]
 								}
 							],
 							"policy": {
@@ -140,6 +146,10 @@
 								},
 								"sink": {
 									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@{activity('Lookup Schema Changes').output.firstRow.AlterScript}",
+										"type": "Expression"
+									},
 									"writeBehavior": "upsert",
 									"upsertSettings": {
 										"useTempDB": true,
@@ -350,6 +360,34 @@
 								"referenceName": "CapatazLiveLS",
 								"type": "LinkedServiceReference"
 							}
+						},
+						{
+							"name": "Lookup Schema Changes",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@string(\n  concat(\n    'SELECT STUFF((',\n      'SELECT ',\n        '''IF NOT EXISTS (',\n          'SELECT 1 ',\n          'FROM [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].INFORMATION_SCHEMA.COLUMNS ',\n          'WHERE TABLE_SCHEMA = ''''dbo'''' ',\n            'AND TABLE_NAME = ''''', item().TableName, ''''' ',\n            'AND COLUMN_NAME = '''''' + c.COLUMN_NAME + ''''''',\n        ') '' + ',\n        '''ALTER TABLE [', replace(pipeline().parameters.SinkDB, ']', ']]'), '].'' + QUOTENAME(c.TABLE_SCHEMA) + ''.'' + QUOTENAME(c.TABLE_NAME) + ',\n        ''' ADD '' + QUOTENAME(c.COLUMN_NAME) + '' '' + ',\n        'c.DATA_TYPE + ',\n        'CASE ',\n          'WHEN c.DATA_TYPE IN (''char'',''varchar'',''nchar'',''nvarchar'',''binary'',''varbinary'') THEN ',\n            '''('' + ',\n            'CASE ',\n              'WHEN c.CHARACTER_MAXIMUM_LENGTH = -1 THEN ''MAX'' ',\n              'ELSE CAST(c.CHARACTER_MAXIMUM_LENGTH AS VARCHAR(10)) ',\n            'END + '')''',\n          'WHEN c.DATA_TYPE IN (''decimal'',''numeric'') THEN ',\n            '''('' + CAST(c.NUMERIC_PRECISION AS VARCHAR(10)) + '','' + CAST(c.NUMERIC_SCALE AS VARCHAR(10)) + '')''',\n          'ELSE ''''',\n        'END + ',\n        'CASE ',\n          'WHEN c.IS_NULLABLE = ''YES'' THEN '' NULL;'' ',\n          'ELSE '' NOT NULL;'' ',\n        'END + CHAR(13)',\n      'FROM INFORMATION_SCHEMA.COLUMNS AS c ',\n      'WHERE c.TABLE_SCHEMA = ''dbo'' AND c.TABLE_NAME = ''', item().TableName, '''',\n      'FOR XML PATH(''''), TYPE).value(''.'',''NVARCHAR(MAX)''), 1, 0, '''') AS AlterScript'\n  )\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "CapatazDB",
+									"type": "DatasetReference"
+								}
+							}
 						}
 					]
 				}
@@ -440,11 +478,11 @@
 				"typeProperties": {
 					"method": "POST",
 					"url": {
-						"value": "https://prod-53.southeastasia.logic.azure.com:443/workflows/9d03871925c7476eaada332752f94139/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=oscBaQ3CM6o9Wl0kcmEw8rA9tDTyo3bAeNbYADRHa2M",
+						"value": "https://prod-48.southeastasia.logic.azure.com:443/workflows/75ff78d72db045959cd6ed6c4ae20762/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=cdviYP2_wJtKYhhocxppia-4XVYyuB-3qkzjqEO2BIc",
 						"type": "Expression"
 					},
 					"body": {
-						"value": "{\n    \"PipelineRunID\": \"@{pipeline().RunId}\",\n    \"ReadSum\": \"@{activity('Email Contents').output.firstRow.ReadSum}\",\n    \"WriteSum\": \"@{activity('Email Contents').output.firstRow.WriteSum}\",\n    \"RemainingSum\": \"@{activity('Email Contents').output.firstRow.RemainingSum}\",\n    \"DatabaseName\": \"@{activity('Email Contents').output.firstRow.DatabaseName}\",\n    \"FinalStatus\": \"@{activity('Email Contents').output.firstRow.FinalStatus}\",\n    \"Remarks\": \"@{activity('Email Contents').output.firstRow.Remarks}\",\n    \"DateToday\": \"@{activity('Email Contents').output.firstRow.DateToday}\",\n    \"TotalRuntime\": \"@{variables('TotalRuntime')}\"\n}\n",
+						"value": "{\n    \"PipelineRunID\": \"@{pipeline().RunId}\",\n    \"ReadSum\": \"@{activity('Email Contents').output.firstRow.ReadSum}\",\n    \"WriteSum\": \"@{activity('Email Contents').output.firstRow.WriteSum}\",\n    \"RemainingSum\": \"@{activity('Email Contents').output.firstRow.RemainingSum}\",\n    \"ArchivalDeletionSum\": \"@{activity('Email Contents').output.firstRow.ArchivalDeletionSum}\",\n    \"DatabaseName\": \"@{activity('Email Contents').output.firstRow.DatabaseName}\",\n    \"StartDate\": \"@{activity('Email Contents').output.firstRow.StartDate}\",\n    \"EndDate\": \"@{activity('Email Contents').output.firstRow.EndDate}\",\n    \"FinalStatus\": \"@{activity('Email Contents').output.firstRow.FinalStatus}\",\n    \"Remarks\": \"@{activity('Email Contents').output.firstRow.Remarks}\",\n    \"DateToday\": \"@{activity('Email Contents').output.firstRow.DateToday}\",\n    \"TotalRuntime\": \"@{variables('TotalRuntime')}\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -472,7 +510,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoringManual\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
+							"value": "SELECT \n    SUM([Read]) AS ReadSum,\n    SUM([Write]) AS WriteSum,\n    SUM([Remaining]) AS RemainingSum,\n    DB_NAME() AS DatabaseName,\n    SUM([ArchivalDeletion]) AS ArchivalDeletionSum,\n    MIN(StartDate) AS StartDate,\n    MAX(EndDate) AS EndDate,\n    CASE \n        WHEN MAX(CASE WHEN Status = 'Failed' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        WHEN MAX(CASE WHEN Status = 'Archived' THEN 1 ELSE 0 END) = 1 THEN 'Failed'\n        ELSE 'Success'\n    END AS FinalStatus,\n    Remarks,\n    FORMAT(\n        GETUTCDATE() AT TIME ZONE 'UTC' AT TIME ZONE 'Singapore Standard Time', \n        'MMMM dd, yyyy'\n    ) AS DateToday\nFROM SnowFlake.ArchivalMonitoringManual\nWHERE PipelineRunID = '@{pipeline().RunId}'\nGROUP BY Remarks;",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -487,8 +525,6 @@
 			{
 				"name": "If Condition for Data Validation",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Sum of Rows Read and Copied",
@@ -895,7 +931,7 @@
 								{
 									"activity": "Upsert Reference Tables",
 									"dependencyConditions": [
-										"Completed"
+										"Succeeded"
 									]
 								}
 							],
@@ -1208,6 +1244,12 @@
 				}
 			}
 		],
+		"parameters": {
+			"SinkDB": {
+				"type": "string",
+				"defaultValue": "ArchivalDB-Simulation"
+			}
+		},
 		"variables": {
 			"TotalRuntime": {
 				"type": "String"
@@ -1218,7 +1260,7 @@
 			},
 			"StartMonth": {
 				"type": "Integer",
-				"defaultValue": 4
+				"defaultValue": 2
 			},
 			"StartDay": {
 				"type": "Integer",
@@ -1230,11 +1272,11 @@
 			},
 			"EndMonth": {
 				"type": "Integer",
-				"defaultValue": 5
+				"defaultValue": 2
 			},
 			"EndDay": {
 				"type": "Integer",
-				"defaultValue": 30
+				"defaultValue": 7
 			}
 		},
 		"annotations": [],
