@@ -1,0 +1,15 @@
+{
+	"name": "CapatazDB",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "CapatazLiveLS",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Live DB Datasets"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": []
+	}
+}
