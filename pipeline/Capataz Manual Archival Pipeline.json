@@ -158,7 +158,7 @@
 											"type": "Expression"
 										}
 									},
-									"sqlWriterUseTableLock": false,
+									"sqlWriterUseTableLock": true,
 									"disableMetricsCollection": false
 								},
 								"enableStaging": false,
