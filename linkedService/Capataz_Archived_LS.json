@@ -1,0 +1,17 @@
+{
+	"name": "Capataz_Archived_LS",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "eclectuscapataz.database.windows.net",
+			"database": "Capataz_Archived",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SQL",
+			"userName": "capataz_data_engineering",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDgxMkUzNUUwLTMwQTgtNDBGNy04RjFBLUJBQzE5ODIyODE2Ml9hMWUzYzM4OS1jNDdjLTRkMTctOGQzOC0zNThhZGViYWEyNzIiDQp9"
+		}
+	}
+}

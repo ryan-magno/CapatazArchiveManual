@@ -93,14 +93,14 @@
 											"value": "@activity('Live to Archive DB').output.rowsCopied",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"Write": {
 										"value": {
 											"value": "@activity('Live to Archive DB').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"TableName": {
 										"value": {
@@ -142,19 +142,19 @@
 											"value": "@activity('Log Data To Delete').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"MaxSysChangeVersion": {
 										"value": {
 											"value": "@item().LastSysChangeVersion",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									}
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -204,7 +204,7 @@
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -393,14 +393,14 @@
 							],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							},
 							"typeProperties": {
@@ -422,14 +422,14 @@
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							},
 							"typeProperties": {
@@ -470,7 +470,7 @@
 					}
 				},
 				"linkedServiceName": {
-					"referenceName": "CapatazLiveLS",
+					"referenceName": "Capataz_Production_LS",
 					"type": "LinkedServiceReference"
 				}
 			},
@@ -629,7 +629,7 @@
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -672,7 +672,7 @@
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -708,7 +708,7 @@
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -718,7 +718,7 @@
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
@@ -931,14 +931,14 @@
 											"value": "@activity('Upsert Reference Tables').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"Write": {
 										"value": {
 											"value": "@activity('Upsert Reference Tables').output.rowsCopied",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"TableName": {
 										"value": {
@@ -980,19 +980,19 @@
 											"value": "@activity('Log Data To Delete Reference').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"MaxSysChangeVersion": {
 										"value": {
 											"value": "@item().LastSysChangeVersion",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									}
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						},
@@ -1100,14 +1100,14 @@
 							],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							},
 							"typeProperties": {
@@ -1129,14 +1129,14 @@
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							},
 							"typeProperties": {
@@ -1165,7 +1165,7 @@
 							],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
@@ -1237,14 +1237,14 @@
 							],
 							"policy": {
 								"timeout": "0.12:00:00",
-								"retry": 0,
+								"retry": 3,
 								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"linkedServiceName": {
-								"referenceName": "CapatazArchiveLS",
+								"referenceName": "Capataz_Archived_LS",
 								"type": "LinkedServiceReference"
 							},
 							"typeProperties": {
@@ -1294,14 +1294,14 @@
 											"value": "@activity('Upsert Reference Failed Tables').output.rowsRead",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"Write": {
 										"value": {
 											"value": "@activity('Upsert Reference Failed Tables').output.rowsCopied",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"TableName": {
 										"value": {
@@ -1340,19 +1340,19 @@
 									},
 									"SyncDeletion": {
 										"value": null,
-										"type": "Int16"
+										"type": "Int32"
 									},
 									"MaxSysChangeVersion": {
 										"value": {
 											"value": "@item().LastSysChangeVersion",
 											"type": "Expression"
 										},
-										"type": "Int16"
+										"type": "Int32"
 									}
 								}
 							},
 							"linkedServiceName": {
-								"referenceName": "CapatazLiveLS",
+								"referenceName": "Capataz_Production_LS",
 								"type": "LinkedServiceReference"
 							}
 						}
@@ -1399,7 +1399,7 @@
 		"parameters": {
 			"SinkDB": {
 				"type": "string",
-				"defaultValue": "ArchivalDB-Simulation"
+				"defaultValue": "Capataz_Archived"
 			}
 		},
 		"variables": {
@@ -1408,6 +1408,7 @@
 			}
 		},
 		"annotations": [],
-		"lastPublishTime": "2025-01-10T07:15:02Z"
-	}
+		"lastPublishTime": "2025-05-28T16:02:25Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
 }

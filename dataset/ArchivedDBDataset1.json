@@ -2,7 +2,7 @@
 	"name": "ArchivedDBDataset1",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "CapatazArchiveLS",
+			"referenceName": "Capataz_Archived_LS",
 			"type": "LinkedServiceReference"
 		},
 		"parameters": {
@@ -23,5 +23,6 @@
 				"type": "Expression"
 			}
 		}
-	}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
 }

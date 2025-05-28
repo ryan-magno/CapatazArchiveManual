@@ -2,7 +2,7 @@
 	"name": "CapatazDB121",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "CapatazLiveLS",
+			"referenceName": "Capataz_Production_LS",
 			"type": "LinkedServiceReference"
 		},
 		"folder": {
@@ -11,5 +11,6 @@
 		"annotations": [],
 		"type": "AzureSqlTable",
 		"schema": []
-	}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
 }

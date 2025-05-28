@@ -2,7 +2,7 @@
 	"name": "DeletionLogDataset",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "CapatazArchiveLS",
+			"referenceName": "Capataz_Archived_LS",
 			"type": "LinkedServiceReference"
 		},
 		"folder": {
@@ -38,5 +38,6 @@
 			"schema": "SnowFlake",
 			"table": "DeletionRequestLog"
 		}
-	}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
 }
