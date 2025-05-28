@@ -459,6 +459,8 @@
 			{
 				"name": "Send Email",
 				"type": "WebActivity",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Get Total Runtime",
@@ -525,6 +527,8 @@
 			{
 				"name": "If Condition for Data Validation",
 				"type": "IfCondition",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Sum of Rows Read and Copied",
@@ -794,7 +798,7 @@
 											"type": "Expression"
 										}
 									},
-									"sqlWriterUseTableLock": false,
+									"sqlWriterUseTableLock": true,
 									"disableMetricsCollection": false
 								},
 								"enableStaging": false
@@ -1264,7 +1268,7 @@
 			},
 			"StartDay": {
 				"type": "Integer",
-				"defaultValue": 1
+				"defaultValue": 8
 			},
 			"EndYear": {
 				"type": "Integer",
@@ -1276,7 +1280,7 @@
 			},
 			"EndDay": {
 				"type": "Integer",
-				"defaultValue": 7
+				"defaultValue": 14
 			}
 		},
 		"annotations": [],
